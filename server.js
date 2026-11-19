@@ -162,6 +162,7 @@ async function runScan({ deep = null } = {}) {
   const candidates = pool.candidates();
 
   state.running = true;
+  state.deep = useDeep;
   state.error = '';
   state.startedAt = new Date().toISOString();
   state.progress = { site: null, done: 0, total: sites.length * candidates.length, model: '', tag: '' };
@@ -323,7 +324,7 @@ const server = http.createServer(async (req, res) => {
       lastScanAt: state.lastScanAt,
       nextScanAt: state.nextScanAt,
       intervalHours: Number((cfg.scan || {}).intervalHours) || 0,
-      deep: Boolean((cfg.scan || {}).deep),
+      deep: state.deep == null ? Boolean((cfg.scan || {}).deep) : state.deep,
       delayMs: Number((cfg.scan || {}).delayMs) || 1200,
       error: state.error,
       remainingMs: state.nextScanAt ? Math.max(0, new Date(state.nextScanAt).getTime() - Date.now()) : null,
