@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://gzxingr.github.io/llm-frontier-radar/sitemap.xml

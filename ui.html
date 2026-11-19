@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Frontier Radar · 前沿模型雷达</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23e0b64d'/%3E%3Cpath d='M16 7l7 12-7 6-7-6z' fill='%23100d05'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#08090c;--s1:#0e1015;--s2:#14171e;--s3:#1b1f28;--s4:#242935;
+    --line:#1d2129;--line2:#2a3039;
+    --fg:#eef1f6;--fg2:#96a0af;--fg3:#5a6473;
+    --gold:#e0b64d;--grn:#3ddc84;--red:#f0645b;--org:#f0a13c;--pur:#a78bfa;--blu:#5b9bff;
+    --mono:ui-monospace,"Cascadia Code",Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(900px 500px at 12% -10%,rgba(224,182,77,.06),transparent 60%),var(--bg);
+    color:var(--fg);display:flex;flex-direction:column;overflow:hidden;
+    font:13px/1.55 ui-sans-serif,"Inter","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+
+  /* 顶栏 */
+  .hdr{flex:0 0 auto;height:54px;display:flex;align-items:center;gap:12px;padding:0 18px;
+    border-bottom:1px solid var(--line);background:var(--s1)}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:660;font-size:13.5px;letter-spacing:-.2px}
+  .brand .ico{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;
+    background:linear-gradient(135deg,#e0b64d,#7a5c1c);color:#0a0b0e;font-size:10px;font-weight:800;
+    box-shadow:0 0 14px rgba(224,182,77,.3)}
+  .brand em{font-style:normal;color:var(--gold);font-weight:700}
+  .sp{flex:1}
+
+  .stat{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--fg3);
+    padding:5px 9px;border-radius:6px;background:var(--s2);border:1px solid var(--line)}
+  .stat b{font-family:var(--mono);font-weight:600;font-size:12.5px}
+  .stat.hide b{color:var(--gold)} .stat.bad b{color:var(--red)} .stat.idle b{color:var(--fg2)}
+
+  .btn{height:29px;padding:0 12px;border-radius:6px;font-size:12px;font-weight:540;
+    border:1px solid var(--line2);background:var(--s2);color:var(--fg2);
+    display:inline-flex;align-items:center;gap:5px;transition:.12s;white-space:nowrap}
+  .btn:hover{background:var(--s3);color:var(--fg);border-color:#39414e}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.pri{background:var(--gold);color:#100d05;border-color:var(--gold);font-weight:680}
+  .btn.pri:hover{background:#f0c761;border-color:#f0c761;color:#100d05}
+  .btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;flex:0 0 auto}
+
+  /* 进度 */
+  .prog{flex:0 0 auto;height:2px;background:var(--s3);overflow:hidden}
+  .prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),#f0d492);transition:width .4s}
+
+  /* 工具条 */
+  .tb{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:9px 18px;
+    border-bottom:1px solid var(--line);flex-wrap:wrap;background:var(--bg)}
+  .chip{height:26px;padding:0 10px;border-radius:5px;font-size:11.5px;color:var(--fg3);
+    border:1px solid var(--line);background:var(--s2);display:inline-flex;align-items:center;gap:5px}
+  .chip.on{background:var(--s4);color:var(--fg);border-color:var(--line2)}
+  .chip i{width:6px;height:6px;border-radius:50%;font-style:normal;flex:0 0 auto}
+  .cnt{font:11px/1 var(--mono);color:var(--fg3);margin-left:auto}
+
+  /* 矩阵 */
+  .wrap{flex:1;overflow:auto;min-height:0}
+  table{border-collapse:separate;border-spacing:0;width:100%}
+  thead th{position:sticky;top:0;z-index:8;background:var(--bg);height:30px;
+    font-size:10.5px;font-weight:600;color:var(--fg2);text-align:center;white-space:nowrap;
+    border-bottom:1px solid var(--line);padding:0 6px}
+  thead th.mh{left:0;z-index:10;text-align:left;padding-left:18px;min-width:190px;color:var(--fg3)}
+  thead th .sub{display:block;font:9.5px/1 var(--mono);color:var(--fg3);margin-top:2px;font-weight:400}
+
+  tbody td{height:30px;border-bottom:1px solid rgba(29,33,41,.6);text-align:center;padding:0 6px}
+  tbody td.mn{position:sticky;left:0;z-index:5;background:var(--bg);text-align:left;
+    padding-left:18px;min-width:190px;font-size:12.5px}
+  tbody tr:hover td{background:var(--s1)}
+  tbody tr:hover td.mn{background:var(--s1)}
+  .fname{font-size:12.5px;color:var(--fg)}
+  .fam{font:9.5px/1 var(--mono);color:var(--fg3);margin-left:7px}
+  tr.famrow td{background:var(--s1);height:24px;font-size:10px;letter-spacing:.8px;
+    text-transform:uppercase;color:var(--fg3);text-align:left;padding-left:18px}
+
+  /* 单元格 */
+  .cell{display:inline-flex;align-items:center;justify-content:center;gap:3px;
+    min-width:52px;height:21px;padding:0 6px;border-radius:4px;font:10.5px/1 var(--mono);
+    border:1px solid transparent;transition:.12s}
+  .cell:hover{filter:brightness(1.25)}
+  .c-hidden{color:#100d05;background:var(--gold);border-color:var(--gold);font-weight:700}
+  .c-listed{color:var(--grn);background:rgba(61,220,132,.09);border-color:rgba(61,220,132,.28)}
+  .c-broken{color:var(--red);background:rgba(240,100,91,.1);border-color:rgba(240,100,91,.3)}
+  .c-absent{color:var(--fg3);background:transparent;border-color:var(--line)}
+  .c-nogroup{color:var(--org);background:rgba(240,161,60,.08);border-color:rgba(240,161,60,.24)}
+  .c-blocked,.c-auth{color:var(--pur);background:rgba(167,139,250,.08);border-color:rgba(167,139,250,.24)}
+  .c-limited{color:var(--org);background:rgba(240,161,60,.08);border-color:rgba(240,161,60,.24)}
+  .c-unknown{color:var(--fg3);background:rgba(90,100,115,.08);border-color:var(--line2)}
+  .c-paid{color:var(--org);background:rgba(240,161,60,.09);border-color:rgba(240,161,60,.26)}\n  .c-waf{color:var(--org);background:rgba(240,161,60,.07);border-color:rgba(240,161,60,.2)}\n  .c-weak{color:var(--blu);background:rgba(91,155,255,.09);border-color:rgba(91,155,255,.28)}\n  .c-clientblock,.c-badpath{color:var(--pur);background:rgba(167,139,250,.08);border-color:rgba(167,139,250,.24)}\n  .c-empty{color:var(--fg3);opacity:.3}
+
+  .empty{padding:60px 20px;text-align:center;color:var(--fg3);font-size:13px;line-height:2}
+  .empty .big{font-size:26px;opacity:.18;font-family:var(--mono);display:block;margin-bottom:8px}
+
+  /* 抽屉 */
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:390px;z-index:60;background:var(--s1);
+    border-left:1px solid var(--line2);transform:translateX(100%);
+    transition:transform .2s cubic-bezier(.2,.8,.3,1);display:flex;flex-direction:column;
+    box-shadow:-16px 0 44px rgba(0,0,0,.55)}
+  .drawer.on{transform:none}
+  .dh{height:50px;display:flex;align-items:center;gap:8px;padding:0 14px;
+    border-bottom:1px solid var(--line);flex:0 0 auto}
+  .dh .t{flex:1;font:600 12px/1.3 var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dh button{width:24px;height:24px;border-radius:5px;display:grid;place-items:center;color:var(--fg3)}
+  .dh button:hover{background:var(--s3);color:var(--fg)}
+  .db{flex:1;overflow-y:auto;padding:14px}
+  .row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;
+    border-bottom:1px solid rgba(29,33,41,.5);font-size:11.5px}
+  .row .k{color:var(--fg3);flex:0 0 auto}
+  .row .v{font-family:var(--mono);color:var(--fg2);text-align:right;word-break:break-all}
+  .detail{margin-top:12px;background:var(--bg);border:1px solid var(--line);border-radius:7px;
+    padding:10px;font:11.5px/1.7 var(--mono);color:var(--fg2);white-space:pre-wrap;word-break:break-word}
+
+  /* 弹窗 */
+  .modal{position:fixed;inset:0;z-index:80;background:rgba(4,5,7,.75);display:none;
+    align-items:center;justify-content:center;padding:34px;backdrop-filter:blur(3px)}
+  .modal.on{display:flex}
+  .mb{background:var(--s1);border:1px solid var(--line2);border-radius:11px;width:100%;
+    max-width:760px;max-height:100%;display:flex;flex-direction:column;overflow:hidden;
+    box-shadow:0 26px 70px rgba(0,0,0,.7)}
+  .mh{height:48px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--line)}
+  .mh .t{flex:1;font-size:13px;font-weight:620}
+  .mc{width:25px;height:25px;border-radius:5px;display:grid;place-items:center;color:var(--fg3)}
+  .mc:hover{background:var(--s3);color:var(--fg)}
+  .mbody{flex:1;overflow-y:auto;padding:16px}
+  .mf{padding:11px 16px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center}
+
+  .sec{margin-bottom:16px}
+  .sec h4{font-size:10.5px;color:var(--fg3);letter-spacing:.7px;text-transform:uppercase;
+    margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--line)}
+  .field{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+  .field label{flex:0 0 96px;font-size:11.5px;color:var(--fg3)}
+  .field input{flex:1;height:30px;background:var(--s2);border:1px solid var(--line2);
+    color:var(--fg);border-radius:5px;padding:0 9px;font-size:12px;outline:none}
+  .field input:focus{border-color:var(--gold)}
+  .field .hint{font:10.5px/1.4 var(--mono);color:var(--fg3);flex:0 0 auto}
+  .site{border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px;background:var(--s2)}
+  .site .top{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .site .top input:first-child{flex:0 0 130px}
+  .site .top input:nth-child(2){flex:1}
+  .poolbox{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:7px;
+    padding:9px 11px;background:var(--bg);font:11.5px/1.9 var(--mono);color:var(--fg2)}
+
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(8px);
+    background:var(--s4);border:1px solid var(--line2);padding:8px 15px;border-radius:7px;
+    font-size:12.5px;opacity:0;pointer-events:none;transition:.2s;z-index:99}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#252a33;border-radius:5px;border:2px solid var(--bg)}
+  ::-webkit-scrollbar-thumb:hover{background:#313844}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="brand"><div class="ico">◇</div><div>Frontier<em>Radar</em></div></div>
+  <div class="stat hide" title="能用但站点没公布的模型">隐藏<b id="s-hidden">0</b></div>
+  <div class="stat bad" title="站点公布了但实际不能用">公布但坏<b id="s-broken">0</b></div>
+  <div class="stat idle" title="候选池模型数 / 站点数"><b id="s-pool">0</b>/<b id="s-sites">0</b></div>
+  <div class="sp"></div>
+  <div class="stat idle" id="countdown" title="下一次自动扫描">未启用定时</div>
+  <button class="btn" id="b-settings">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 0 0-1.7-1L14.5 3h-5l-.4 2.6a7 7 0 0 0-1.7 1l-2.3-1-2 3.4L5 11a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.4 2.6h5l.4-2.6a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5c.1-.3.1-.7.1-1Z"/></svg>
+    设置
+  </button>
+  <button class="btn" id="b-export">导出 CSV</button>
+  <button class="btn pri" id="b-scan">
+    <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 1 3 6.7"/><path d="M3 20v-5h5"/></svg>
+    开始扫描
+  </button>
+</div>
+<div class="prog"><i id="progbar"></i></div>
+
+<div class="tb">
+  <button class="chip on" data-f="all">全部</button>
+  <button class="chip" data-f="hidden"><i style="background:var(--gold)"></i>隐藏可用</button>
+  <button class="chip" data-f="paid"><i style="background:var(--org)"></i>需付费</button>\n  <button class="chip" data-f="broken"><i style="background:var(--red)"></i>公布但坏</button>
+  <button class="chip" data-f="weak"><i style="background:var(--blu)"></i>疑似可用</button>
+  <button class="chip" data-f="unknown"><i style="background:var(--fg3)"></i>待确认</button>
+  <button class="chip" data-f="listed"><i style="background:var(--grn)"></i>已公布可用</button>
+  <span class="cnt" id="cnt"></span>
+</div>
+
+<div class="wrap" id="wrap">
+  <div class="empty">
+    <span class="big">◇</span>
+    还没有扫描结果<br>
+    <span style="font-size:11.5px">先点「设置」加站点，再点「开始扫描」</span>
+  </div>
+</div>
+
+<div class="drawer" id="drawer">
+  <div class="dh">
+    <div class="t" id="dw-t">—</div>
+    <button id="dw-x"><svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" stroke-width="2.2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+  </div>
+  <div class="db" id="dw-b"></div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="mb">
+    <div class="mh"><div class="t" id="m-t">设置</div>
+      <button class="mc" id="m-x"><svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2.2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    </div>
+    <div class="mbody" id="m-b"></div>
+    <div class="mf" id="m-f"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let MATRIX=null, FILTER='all', STATUS=null, timer=null, poll=null;
+
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');
+  clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),1800);}
+
+async function jget(u){const r=await fetch(u,{cache:'no-store'});return r.json();}
+
+/* ---------- 结果渲染 ---------- */
+const TAG_TEXT={hidden:'隐藏可用',listed:'已公布',weak:'疑似可用',broken:'公布但坏',absent:'不存在',
+  nogroup:'分组没有',paid:'需付费',waf:'被 WAF 拦',clientblock:'客户端被拦',badpath:'路径不存在',blocked:'无权限',auth:'密钥失效',limited:'限流',unknown:'待确认'};
+
+function render(){
+  if(!MATRIX||!MATRIX.models.length){
+    $('wrap').innerHTML='<div class="empty"><span class="big">◇</span>还没有扫描结果<br><span style="font-size:11.5px">先点「设置」加站点，再点「开始扫描」</span></div>';
+    return;
+  }
+  const {models,sites,cells,counts}=MATRIX;
+  $('s-hidden').textContent=counts.hidden||0;
+  $('s-broken').textContent=counts.broken||0;
+  $('s-pool').textContent=models.length;
+  $('s-sites').textContent=sites.length;
+
+  // 过滤：只要有任意一个站命中就保留整行
+  const keep=mo=>{
+    if(FILTER==='all')return true;
+    return sites.some(s=>cells[mo.id]?.[s.id]?.tag===FILTER);
+  };
+  const rows=models.filter(keep);
+  $('cnt').textContent=`${rows.length} / ${models.length} 模型 · ${sites.length} 站`;
+
+  let h='<table><thead><tr><th class="mh">模型</th>';
+  for(const s of sites){
+    h+=`<th>${esc(s.name)}<span class="sub">${s.declaredOk?s.declaredCount+' 已公布':'列表失败 '+(s.declaredStatus||'')}</span></th>`;
+  }
+  h+='</tr></thead><tbody>';
+
+  let lastFam=null;
+  for(const mo of rows){
+    if(mo.family&&mo.family!==lastFam){
+      lastFam=mo.family;
+      h+=`<tr class="famrow"><td colspan="${sites.length+1}">${esc(mo.family)}</td></tr>`;
+    }
+    h+=`<tr><td class="mn"><span class="fname">${esc(mo.id)}</span></td>`;
+    for(const s of sites){
+      const c=cells[mo.id]?.[s.id];
+      if(!c){h+='<td><span class="cell c-empty">—</span></td>';continue;}
+      const short=c.tag==='hidden'?'隐藏':c.tag==='listed'?'可用':c.tag==='weak'?'疑似':c.tag==='clientblock'?'被拦':c.tag==='waf'?'WAF':c.tag==='paid'?'付费':TAG_TEXT[c.tag]||c.tag;
+      h+=`<td><button class="cell c-${c.tag}" data-m="${esc(mo.id)}" data-s="${esc(s.id)}"
+        title="${esc(TAG_TEXT[c.tag]||c.tag)} · HTTP ${c.status||'—'} · ${esc(c.proto||'')}">${esc(short)}</button></td>`;
+    }
+    h+='</tr>';
+  }
+  h+='</tbody></table>';
+  $('wrap').innerHTML=h;
+
+  $('wrap').querySelectorAll('.cell[data-m]').forEach(b=>{
+    b.onclick=()=>openCell(b.dataset.m,b.dataset.s);
+  });
+}
+
+/* ---------- 单元格详情 ---------- */
+function openCell(model,siteId){
+  const c=MATRIX.cells[model]?.[siteId];
+  const s=MATRIX.sites.find(x=>x.id===siteId);
+  if(!c)return;
+  $('dw-t').textContent=`${model} @ ${s?s.name:siteId}`;
+  const rows=[
+    ['判定',TAG_TEXT[c.tag]||c.tag],
+    ['站点公布',c.declared?'是':'否'],
+    ['HTTP',c.status||'—'],
+    ['协议',c.proto==='responses'?'Responses API':'Chat Completions'],
+    ['延迟',c.latencyMs!=null?c.latencyMs+' ms':'—'],
+    ['探测级别',c.real?'L3 真实调用':'L1/L2 零成本'],
+    ['消耗 token',c.tokens??'—'],
+  ];
+  $('dw-b').innerHTML=rows.map(([k,v])=>
+    `<div class="row"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`).join('')
+    +(c.detail?`<div class="detail">${esc(c.detail)}</div>`:'');
+  $('drawer').classList.add('on');
+}
+$('dw-x').onclick=()=>$('drawer').classList.remove('on');
+
+/* ---------- 状态与倒计时 ---------- */
+function fmtMs(ms){
+  if(ms==null)return null;
+  const s=Math.floor(ms/1000),hh=Math.floor(s/3600),mm=Math.floor(s%3600/60),ss=s%60;
+  return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+}
+async function refreshStatus(){
+  STATUS=await jget('/api/status');
+  const b=$('b-scan');
+  if(STATUS.running){
+    b.disabled=true;b.textContent='扫描中…';
+    const p=STATUS.progress;
+    if(p&&p.total){
+      $('progbar').style.width=Math.round(p.done/p.total*100)+'%';
+    }
+  }else{
+    b.disabled=false;b.innerHTML='<svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2"><path d="M3 12a9 9 0 1 1 3 6.7"/><path d="M3 20v-5h5"/></svg>开始扫描';
+    if(!STATUS.intervalHours)$('progbar').style.width='0';
+  }
+}
+function tickCountdown(){
+  if(!STATUS)return;
+  const el=$('countdown');
+  if(STATUS.running){el.textContent='扫描中…';return;}
+  if(!STATUS.intervalHours||!STATUS.nextScanAt){el.textContent='未启用定时';return;}
+  const left=new Date(STATUS.nextScanAt).getTime()-Date.now();
+  el.textContent='下次 '+ (left>0?fmtMs(left):'即将开始');
+}
+
+/* ---------- 扫描 ---------- */
+$('b-scan').onclick=async()=>{
+  const r=await fetch('/api/scan',{method:'POST'});
+  const j=await r.json();
+  if(!j.ok){toast(j.error||'无法开始');return;}
+  toast('扫描已开始');
+  await refreshStatus();
+  startPolling();
+};
+
+function startPolling(){
+  if(poll)return;
+  poll=setInterval(async()=>{
+    await refreshStatus();
+    if(!STATUS.running){
+      clearInterval(poll);poll=null;
+      MATRIX=await jget('/api/results');
+      render();
+      toast('扫描完成');
+    }
+  },2000);
+}
+
+/* ---------- 导出 ---------- */
+$('b-export').onclick=()=>{window.open('/api/export','_blank');};
+
+/* ---------- 过滤 ---------- */
+document.querySelectorAll('.chip[data-f]').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('.chip[data-f]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');FILTER=b.dataset.f;render();
+  };
+});
+
+/* ---------- 设置 ---------- */
+function siteRow(s,i){
+  return `<div class="site" data-i="${i}">
+    <div class="top">
+      <input class="s-name" placeholder="显示名" value="${esc(s.name||'')}">
+      <input class="s-url" placeholder="https://api.example.com/v1" value="${esc(s.baseUrl||'')}">
+      <button class="btn rm" style="height:28px">移除</button>
+    </div>
+    <div class="top">
+      <input class="s-id" placeholder="id" value="${esc(s.id||'')}" style="flex:0 0 130px">
+      <input class="s-key" type="password" placeholder="${s.hasKey?'已保存，留空不改':'API Key'}" style="flex:1">
+      <input class="s-proxy" placeholder="代理 可选 http://127.0.0.1:7897" value="${esc(s.proxy||'')}" style="flex:0 0 190px">
+    </div>
+    <div class="top">
+      <input class="s-headers" placeholder='额外请求头 JSON，如 {"User-Agent":"DeepSeek-Harness/1.0"}' value="${esc(JSON.stringify(s.headers||{}))}" style="flex:1">
+    </div>
+  </div>`;
+}
+
+async function openSettings(){
+  const cfg=await jget('/api/config');
+  const poolInfo=await jget('/api/pool');
+  const sc=cfg.scan||{};
+  $('m-t').textContent='设置';
+  $('m-b').innerHTML=`
+    <div class="sec"><h4>站点</h4><div id="sites"></div>
+      <button class="btn" id="add-site">+ 添加站点</button></div>
+    <div class="sec"><h4>扫描节奏（防 WAF）</h4>
+      <div class="field"><label>自动扫描</label>
+        <input id="c-interval" type="number" min="0" step="1" value="${sc.intervalHours||0}">
+        <span class="hint">小时 · 0 = 只手动</span></div>
+      <div class="field"><label>请求间隔</label>
+        <input id="c-delay" type="number" min="200" step="100" value="${sc.delayMs||1200}">
+        <span class="hint">毫秒 · 带 ±40% 抖动</span></div>
+      <div class="field"><label>站点间隔</label>
+        <input id="c-gap" type="number" min="0" step="500" value="${sc.siteGapMs||3000}">
+        <span class="hint">毫秒</span></div>
+      <div class="field"><label>单请求超时</label>
+        <input id="c-timeout" type="number" min="5000" step="1000" value="${sc.timeoutMs||30000}">
+        <span class="hint">毫秒</span></div>
+      <div class="field"><label>L3 真实调用</label>
+        <input id="c-deep" type="checkbox" style="flex:0 0 auto;height:16px" ${sc.deep?'checked':''}>
+        <span class="hint">默认关 · 开了会花 token</span></div>
+    </div>
+    <div class="sec"><h4>候选池（${poolInfo.count} 个 · 不含参数后缀）</h4>
+      <div class="poolbox">${poolInfo.families.map(f=>
+        `<div style="color:var(--fg3);margin-top:4px">${esc(f.name)}</div>`+
+        f.models.map(m=>`<span style="color:var(--fg2)">${esc(m)}</span>`).join(' · ')
+      ).join('')}</div>
+      ${poolInfo.warnings.length?`<div class="detail" style="border-color:rgba(240,161,75,.4)">疑似带参数：${poolInfo.warnings.join(', ')}</div>`:''}
+    </div>`;
+
+  const list=$('sites');
+  const draw=()=>{
+    list.innerHTML=(cfg.sites||[]).map((s,i)=>siteRow(s,i)).join('');
+    list.querySelectorAll('.rm').forEach(b=>b.onclick=()=>{b.closest('.site').remove();});
+  };
+  draw();
+
+  $('add-site').onclick=()=>{
+    cfg.sites=cfg.sites||[];
+    const d=document.createElement('div');
+    d.innerHTML=siteRow({},cfg.sites.length);
+    list.appendChild(d.firstElementChild);
+    list.lastElementChild.querySelector('.rm').onclick=()=>list.lastElementChild.remove();
+  };
+
+  $('m-f').innerHTML=`<button class="btn" id="m-cancel">取消</button>
+    <button class="btn pri" id="m-save">保存</button>`;
+  $('m-cancel').onclick=()=>$('modal').classList.remove('on');
+  $('m-save').onclick=async()=>{
+    const sites=[...list.querySelectorAll('.site')].map((el,i)=>({
+      id:el.querySelector('.s-id').value.trim()||('site-'+(i+1)),
+      name:el.querySelector('.s-name').value.trim(),
+      baseUrl:el.querySelector('.s-url').value.trim(),
+      apiKey:el.querySelector('.s-key').value,
+      proxy:el.querySelector('.s-proxy').value.trim(),
+      headers:el.querySelector('.s-headers').value.trim(),
+    })).filter(s=>s.baseUrl);
+    const body={sites,scan:{
+      intervalHours:Number($('c-interval').value)||0,
+      delayMs:Number($('c-delay').value)||1200,
+      siteGapMs:Number($('c-gap').value)||3000,
+      timeoutMs:Number($('c-timeout').value)||30000,
+      deep:$('c-deep').checked,
+    }};
+    const r=await fetch('/api/config',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify(body)});
+    const j=await r.json();
+    if(j.ok){$('modal').classList.remove('on');toast('已保存');await refreshStatus();}
+    else toast(j.error||'保存失败');
+  };
+  $('modal').classList.add('on');
+}
+$('b-settings').onclick=openSettings;
+$('m-x').onclick=()=>$('modal').classList.remove('on');
+
+/* ---------- 启动 ---------- */
+(async function init(){
+  await refreshStatus();
+  MATRIX=await jget('/api/results');
+  render();
+  setInterval(tickCountdown,1000);
+  timer=setInterval(refreshStatus,10000);
+  if(STATUS&&STATUS.running)startPolling();
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){$('modal').classList.remove('on');$('drawer').classList.remove('on');}
+  });
+})();
+</script>
+</body>
+</html>

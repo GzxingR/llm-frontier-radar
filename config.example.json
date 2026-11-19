@@ -1,0 +1,24 @@
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 5199
+  },
+  "scan": {
+    "intervalHours": 0,
+    "delayMs": 1200,
+    "siteGapMs": 3000,
+    "timeoutMs": 30000,
+    "deep": false
+  },
+  "sites": [
+    {
+      "id": "example",
+      "name": "示例公益站",
+      "baseUrl": "https://api.example.com/v1",
+      "apiKey": "YOUR_KEY_IN_LOCAL_CONFIG",
+      "proxy": "",
+      "kind": "公益站",
+      "enabled": true
+    }
+  ]
+}
